@@ -34,6 +34,8 @@
 - `scripts/pipeline.py` ตัว pipeline หลัก
 - `scripts/joern_extract.sc` สคริปต์ query ของ `Joern`
 - `scripts/build_real_datasets.py` ตัวรวม dataset จากแหล่งจริง
+- `scripts/dashboard_server.py` backend เล็ก ๆ สำหรับ dashboard และ local agent runner
+- `dashboard/` หน้า UI ที่ดัดแนวคิดมาจาก `ai-agents-pixels`
 - `outputs_source_joern/` ผลลัพธ์รอบที่ใช้ `Joern` จริง
 - `outputs_binary/` ผลลัพธ์รอบวิเคราะห์ binary
 
@@ -129,6 +131,18 @@ python3 scripts/pipeline.py --sample samples/command_injection_challenge.c --out
 python3 scripts/pipeline.py --sample samples/command_injection_challenge.bin --mode binary --outputs outputs_binary
 ```
 
+### 4. เปิด dashboard workflow
+
+```bash
+python3 scripts/dashboard_server.py
+```
+
+แล้วเปิดเบราว์เซอร์ไปที่
+
+```text
+http://127.0.0.1:4317
+```
+
 ## Output ที่จะได้
 
 - `ranked_paths.json`
@@ -190,3 +204,19 @@ python3 scripts/pipeline.py --sample samples/command_injection_challenge.bin --m
 ```bash
 python3 scripts/build_real_datasets.py
 ```
+
+## Local Agent ที่ต่อไว้แล้ว
+
+ตอนนี้ dashboard ฝั่ง local agent runner รองรับการเรียกผ่าน CLI ในเครื่องโดยตรง:
+
+- `gemini`
+- `codex`
+- `claude`
+
+แนวคิดคือไม่ต้องวิ่งผ่าน provider เดิมอย่างเดียว แต่ให้ระบบเราเรียก agent ที่มีอยู่ในเครื่องได้เลย
+
+ตอนนี้จากที่ลองจริง:
+
+- `gemini` ใช้งานได้
+- `codex` ใช้งานได้
+- `claude` เรียกได้ แต่ผลจะขึ้นกับเครดิต/สิทธิ์ของ account ที่ล็อกอินอยู่
