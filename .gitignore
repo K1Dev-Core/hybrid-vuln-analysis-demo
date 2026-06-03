@@ -14,3 +14,4 @@ outputs_binary/
 outputs_source/
 flag.txt
 tools/
+external_data/

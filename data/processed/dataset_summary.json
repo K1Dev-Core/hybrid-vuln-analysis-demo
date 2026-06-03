@@ -1,0 +1,85 @@
+{
+  "devign_total": 27318,
+  "devign_topics": {
+    "other": 19193,
+    "format_string": 5888,
+    "command_injection": 486,
+    "rop": 1288,
+    "buffer_overflow": 369,
+    "heap": 76,
+    "integer_overflow": 18
+  },
+  "msr_total": 4432,
+  "top_cwe": [
+    [
+      "CWE-119",
+      694
+    ],
+    [
+      "CWE-20",
+      445
+    ],
+    [
+      "CWE-125",
+      365
+    ],
+    [
+      "CWE-200",
+      272
+    ],
+    [
+      "CWE-264",
+      266
+    ],
+    [
+      "CWE-399",
+      265
+    ],
+    [
+      "CWE-416",
+      184
+    ],
+    [
+      "CWE-189",
+      133
+    ],
+    [
+      "CWE-476",
+      133
+    ],
+    [
+      "CWE-190",
+      109
+    ],
+    [
+      "CWE-362",
+      99
+    ],
+    [
+      "CWE-787",
+      72
+    ],
+    [
+      "CWE-284",
+      68
+    ],
+    [
+      "CWE-79",
+      44
+    ],
+    [
+      "CWE-254",
+      34
+    ]
+  ],
+  "writeup_total": 137,
+  "writeup_topics": {
+    "rop": 5,
+    "buffer_overflow": 21,
+    "format_string": 22,
+    "other": 53,
+    "command_injection": 35,
+    "heap": 1
+  },
+  "augmented_training_rows": 27333
+}

@@ -29,9 +29,11 @@
 
 - `samples/` เก็บไฟล์โจทย์ที่เอาไว้ลอง
 - `data/training_paths.csv` dataset เล็กสำหรับ train model
+- `data/processed/` dataset ที่รวมจากแหล่งจริงแล้ว
 - `data/knowledge_base/` โน้ตความรู้ที่เอาไว้ทำ retrieval
 - `scripts/pipeline.py` ตัว pipeline หลัก
 - `scripts/joern_extract.sc` สคริปต์ query ของ `Joern`
+- `scripts/build_real_datasets.py` ตัวรวม dataset จากแหล่งจริง
 - `outputs_source_joern/` ผลลัพธ์รอบที่ใช้ `Joern` จริง
 - `outputs_binary/` ผลลัพธ์รอบวิเคราะห์ binary
 
@@ -149,3 +151,42 @@ python3 scripts/pipeline.py --sample samples/command_injection_challenge.bin --m
 
 - `binary_corroboration.json`
   หลักฐานฝั่ง binary ที่ช่วยยืนยันผลจาก source
+
+## Dataset จริงที่ดึงเข้ามาแล้ว
+
+รอบนี้โปรเจกต์ไม่ได้มีแค่ sample เล็ก ๆ แล้ว แต่ผมดึงข้อมูลจริงเข้ามาเพิ่มด้วย
+
+- `Devign`
+  ใช้เป็นชุดตัวอย่างฟังก์ชัน C/C++ สำหรับงาน vulnerability detection
+
+- `MSR_20_Code_vulnerability_CSV_Dataset`
+  ใช้เป็นข้อมูลช่องโหว่จริงที่มี CVE, CWE, commit และ summary
+
+- `pwntools-write-ups` และ `ByteBandits/writeups`
+  ใช้เป็นฐานความรู้ฝั่ง CTF / pwn / write-up
+
+## ไฟล์ dataset ที่สร้างไว้ให้แล้ว
+
+- `data/processed/devign_function_index.csv`
+  ดัชนีฟังก์ชันจาก Devign
+
+- `data/processed/devign_feature_rows.csv`
+  feature rows ที่แปลงจาก Devign แล้ว
+
+- `data/processed/msr_c_cpp_vulns.csv`
+  ข้อมูลช่องโหว่จริงฝั่ง C/C++ จาก MSR 20
+
+- `data/processed/ctf_writeups_index.csv`
+  index ของ write-up ที่ดึงมาใช้กับ retrieval
+
+- `data/processed/training_paths_augmented.csv`
+  training CSV ที่รวมของเดิมกับข้อมูลจริงเพิ่มเข้าไปแล้ว
+
+- `data/processed/dataset_summary.json`
+  ไฟล์สรุปจำนวนข้อมูลที่ดึงเข้ามา
+
+## ถ้าจะสร้าง dataset ใหม่อีกรอบ
+
+```bash
+python3 scripts/build_real_datasets.py
+```
