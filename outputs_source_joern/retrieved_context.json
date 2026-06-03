@@ -1,0 +1,14 @@
+[
+  {
+    "title": "Command Injection",
+    "path": "/Users/k1god/hybrid-vuln-analysis-demo/data/knowledge_base/command_injection.md",
+    "score": 0.358478,
+    "excerpt": "# Command Injection"
+  },
+  {
+    "title": "Format String",
+    "path": "/Users/k1god/hybrid-vuln-analysis-demo/data/knowledge_base/format_string.md",
+    "score": 0.075533,
+    "excerpt": "Format string vulnerabilities appear when attacker-controlled input is passed directly as the format argument to `printf`-style functions."
+  }
+]

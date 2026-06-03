@@ -1,0 +1,21 @@
+[
+  {
+    "origin": "binary-static",
+    "source": "stdin-or-argv",
+    "sink": "system",
+    "source_line": null,
+    "sink_line": null,
+    "path_length": 1,
+    "is_guarded": true,
+    "contains_buffer_copy": false,
+    "contains_formatting_call": true,
+    "file_path": "/Users/k1god/hybrid-vuln-analysis-demo/outputs_source_joern/command_injection_challenge.bin",
+    "source_code": "binary input boundary",
+    "sink_code": "imported symbol: system",
+    "evidence": [
+      "Imported symbols: ___snprintf_chk\n___stack_chk_fail\n___stack_chk_guard\n___stdinp\n___stdoutp\n__mh_execute_header\n_fclose\n_fflush\n_fgets\n_fopen\n_fputs\n_main\n_printf\n_puts\n_strcmp\n_strcspn\n_strlen\n_system",
+      "radare2 hint: 22  0x00000715 0x100000715 8   9    2.__TEXT.__cstring ascii   flag.txt\n23  0x00000720 0x100000720 35  36   2.__TEXT.__cstring ascii   flag{hybrid_pipeline_demo_success}\\n\n64  0x000083da 0x1000083da 11  12                      ascii   _setup_flag\n0x1000006d4    1     12 sym.imp.system\n\nWARN: Relocs has not been applied. Please use `-e bin.relocs.apply=true` or `-e bin.cache=true` next time\nINFO: Analyze all flags starting with sym. and entry0 (aa)\nINFO: Analyze imports (af@@@i)\nINFO: Analyze ent",
+      "Suspicious strings: name> | admin | hello admin | echo hello %s | flag{hybrid_pipeline_demo_success}"
+    ]
+  }
+]

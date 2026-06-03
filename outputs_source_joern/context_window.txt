@@ -1,0 +1,13 @@
+0035:     if (strlen(user_input) == 0) {
+0036:         puts("empty input");
+0037:         return 1;
+0038:     }
+0039: 
+0040:     if (strcmp(user_input, "admin") == 0) {
+0041:         puts("hello admin");
+0042:     }
+0043: 
+0044:     snprintf(command, sizeof(command), "echo hello %s", user_input);
+0045:     system(command);
+0046:     return 0;
+0047: }

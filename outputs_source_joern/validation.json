@@ -1,0 +1,11 @@
+{
+  "used_llm": true,
+  "fallback_used": true,
+  "attempts": 1,
+  "validation_errors": [
+    {
+      "attempt": 1,
+      "runtime_error": "LLM request failed with HTTP 403: blocked by upstream Cloudflare protection"
+    }
+  ]
+}

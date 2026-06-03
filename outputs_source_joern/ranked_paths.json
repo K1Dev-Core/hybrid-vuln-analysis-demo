@@ -1,0 +1,29 @@
+[
+  {
+    "origin": "joern-cpg",
+    "source": "fgets",
+    "sink": "system",
+    "source_line": 29,
+    "sink_line": 45,
+    "path_length": 16,
+    "is_guarded": true,
+    "contains_buffer_copy": false,
+    "contains_formatting_call": true,
+    "file_path": "/Users/k1god/hybrid-vuln-analysis-demo/samples/command_injection_challenge.c",
+    "source_code": "fgets(user_input, sizeof(user_input), stdin)",
+    "sink_code": "system(command)",
+    "evidence": [
+      "Joern method: m"
+    ],
+    "score": 0.075,
+    "features": {
+      "path_length": 16,
+      "has_source": 1,
+      "has_sink": 1,
+      "is_guarded": 1,
+      "contains_buffer_copy": 0,
+      "contains_formatting_call": 1,
+      "sink_kind": 3
+    }
+  }
+]
