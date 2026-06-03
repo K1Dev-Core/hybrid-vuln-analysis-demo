@@ -1,393 +1,238 @@
-const { useEffect, useMemo, useState } = React;
+/* ===== App: adapted from ai-agents-pixels, now wired to vuln backend ===== */
+const {useState, useRef, useEffect} = React;
 
-const STAGES = [
-  { id: "ingest", name: "รับไฟล์เข้า", tag: "INGEST", x: 14, y: 18, detail: "รับ source, binary หรือโจทย์ที่จะส่งเข้าระบบ" },
-  { id: "joern", name: "Joern CPG", tag: "CPG", x: 38, y: 16, detail: "สร้างและ query path จาก source code จริง" },
-  { id: "binary", name: "Binary Evidence", tag: "BIN", x: 62, y: 18, detail: "เก็บหลักฐานจาก strings, imports และ radare2" },
-  { id: "ml", name: "ML Ranking", tag: "ML", x: 82, y: 33, detail: "ให้คะแนน path ที่น่าสงสัยที่สุด" },
-  { id: "context", name: "Selective Context", tag: "CTX", x: 68, y: 60, detail: "ตัด snippet เฉพาะช่วงที่เสี่ยง" },
-  { id: "retrieval", name: "Knowledge Retrieval", tag: "RAG", x: 43, y: 64, detail: "ดึงโน้ตและ write-up ที่เกี่ยวข้อง" },
-  { id: "report", name: "Agent Report", tag: "AGENT", x: 20, y: 56, detail: "ให้ local agent หรือ fallback เขียนสรุปรายงาน" },
+const STARTS = [
+  {x:42,y:58},{x:52,y:62},{x:46,y:66},{x:70,y:64},{x:30,y:70},{x:58,y:52},
 ];
 
-const TEAM = [
-  { id: "a1", name: "Scout", tint: "#4f8a4e", stage: "ingest" },
-  { id: "a2", name: "Jo", tint: "#4c79c3", stage: "joern" },
-  { id: "a3", name: "Binx", tint: "#cf5b4b", stage: "binary" },
-  { id: "a4", name: "Rank", tint: "#e2b54f", stage: "ml" },
-  { id: "a5", name: "Raggy", tint: "#7b55c9", stage: "retrieval" },
-  { id: "a6", name: "Sage", tint: "#3ea692", stage: "report" },
-];
+function App(){
+  const [view,setView]       = useState('dashboard');
+  const [history,setHistory] = useState([]);
+  const [analyses,setAnalyses] = useState([]);
+  const [activeAnalysisId,setActiveAnalysisId] = useState(null);
+  const [agentView,setAgentView] = useState(
+    AGENTS.map((a,i)=>({...a, pos:{...STARTS[i]}, flip:false, walking:false, bubble:null})));
+  const [busySet,setBusySet] = useState({});
+  const [floor,setFloor]     = useState({working:0, walking:0});
+  const [clock,setClock]     = useState(570);
+  const [day,setDay]         = useState(1);
+  const [speed,setSpeed]     = useState(1);
+  const [settings,setSettings] = useState({autopilot:true, anim:true, tint:true, aggr:1, labels:true, names:true});
+  const [state,setState] = useState(null);
+  const [running,setRunning] = useState(false);
 
-function Sparkline({ values }) {
-  const safe = values.length ? values : [0];
-  const min = Math.min(...safe);
-  const max = Math.max(...safe);
-  const span = max === min ? 1 : max - min;
-  const points = safe
-    .map((value, index) => {
-      const x = safe.length === 1 ? 0 : (index / (safe.length - 1)) * 100;
-      const y = 100 - ((value - min) / span) * 100;
-      return `${x},${y}`;
-    })
-    .join(" ");
+  const agentsRef = useRef(AGENTS.map((a,i)=>({
+    id:a.id, name:a.name, role:a.role, tint:a.tint, map:a.map, palette:a.palette,
+    pos:{...STARTS[i]}, target:null, phase:'idle',
+    workT:0, idleT:rnd(0.4, 2.6+i*0.4), pending:null, lastSt:null, flip:false,
+  })));
+  const clkRef=useRef(570), dayRef=useRef(1), idc=useRef(0);
+  const sRef=useRef(settings), spRef=useRef(speed);
+  useEffect(()=>{sRef.current=settings;},[settings]);
+  useEffect(()=>{spRef.current=speed;},[speed]);
 
-  return (
-    <div className="sparkline">
-      <div className="sparkline-line">
-        <svg viewBox="0 0 100 100" preserveAspectRatio="none">
-          <polyline
-            fill="none"
-            stroke="var(--screen-line)"
-            strokeWidth="3"
-            points={points}
-          />
-        </svg>
-      </div>
-    </div>
-  );
-}
+  const captureAnalysis = (backendState, label='latest-session') => {
+    const analysis = createWorkflowAnalysis({
+      state: backendState,
+      id: `analysis-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,
+      label,
+    });
+    setAnalyses(list=>[analysis,...list].slice(0,20));
+    setActiveAnalysisId(analysis.id);
+  };
 
-function Sidebar({ view, setView, state }) {
-  const nav = [
-    ["overview", "ภาพรวม"],
-    ["workflow", "Workflow"],
-    ["datasets", "Datasets"],
-    ["agents", "Local Agents"],
-  ];
-
-  const metrics = state?.metrics || {};
-  const providers = state?.providers || [];
-  const datasets = state?.datasetSummary || {};
-  const activity = state?.activityLog || [];
-
-  return (
-    <aside className="sidebar">
-      <div className="frame card tight">
-        <div className="brand">
-          <div className="brand-badge">AI</div>
-          <div>
-            <h1>Hybrid Vuln Ops</h1>
-            <div className="sub">dashboard + workflow + local agents</div>
-          </div>
-        </div>
-      </div>
-
-      <div className="frame card tight">
-        <div className="nav">
-          {nav.map(([id, label]) => (
-            <button
-              key={id}
-              className={`nav-btn${view === id ? " active" : ""}`}
-              onClick={() => setView(id)}
-              type="button"
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="frame card">
-        <div className="label">สถานะล่าสุด</div>
-        <div className="stats">
-          <div className="stat"><span className="k">Analyzer</span><span className="v">{metrics.analyzer || "-"}</span></div>
-          <div className="stat"><span className="k">Candidate Paths</span><span className="v">{metrics.candidateCount ?? "-"}</span></div>
-          <div className="stat"><span className="k">Training Rows</span><span className="v">{datasets.augmented_training_rows ?? "-"}</span></div>
-          <div className="stat"><span className="k">Write-ups</span><span className="v">{datasets.writeup_total ?? "-"}</span></div>
-        </div>
-        <Sparkline values={[
-          datasets.devign_total || 0,
-          datasets.msr_total || 0,
-          datasets.writeup_total || 0,
-          datasets.augmented_training_rows || 0,
-        ]} />
-      </div>
-
-      <div className="frame card">
-        <div className="label">Local Providers</div>
-        <div className="provider-list">
-          {providers.map((provider) => (
-            <div className="provider-item" key={provider.id}>
-              <strong>{provider.label}</strong>
-              <div className="provider-meta">
-                {provider.available ? `พร้อมใช้ที่ ${provider.path}` : "ยังไม่เจอในเครื่อง"}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="frame card">
-        <div className="label">Activity</div>
-        <div className="activity-list">
-          {activity.length === 0 && <div className="activity-item"><div className="activity-meta">ยังไม่มี action ในรอบนี้</div></div>}
-          {activity.map((item) => (
-            <div className="activity-item" key={item.id}>
-              <strong>{item.title}</strong>
-              <div className="activity-meta">{item.detail}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </aside>
-  );
-}
-
-function WorkflowFloor({ workflow, selectedStage, onSelect }) {
-  const stateById = {};
-  workflow.forEach((item) => {
-    stateById[item.id] = item;
-  });
-
-  return (
-    <div className="floor">
-      <div className="floor-grid" />
-      {STAGES.map((stage) => {
-        const status = stateById[stage.id]?.status || "idle";
-        return (
-          <div
-            className={`station ${status === "done" ? "done" : status === "warn" ? "warn" : ""}`}
-            style={{ left: `${stage.x}%`, top: `${stage.y}%` }}
-            key={stage.id}
-            onClick={() => onSelect(stage.id)}
-          >
-            <div className="station-ring" />
-            <div className="station-label">{stage.tag}</div>
-            <div className="station-hint">{stage.name}</div>
-          </div>
-        );
-      })}
-
-      {TEAM.map((agent) => {
-        const stage = STAGES.find((item) => item.id === agent.stage);
-        if (!stage) return null;
-        return (
-          <div className="agent" style={{ left: `${stage.x + 4}%`, top: `${stage.y + 9}%` }} key={agent.id}>
-            <div className="agent-body" style={{ background: agent.tint }} />
-            <div className="agent-name">{agent.name}</div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function OverviewView({ state }) {
-  const best = state?.latestFinding || {};
-  return (
-    <div className="panel frame">
-      <div className="label">สรุปภาพรวม</div>
-      <div className="workflow-detail">
-        <h3>Finding ล่าสุด</h3>
-        <p>
-          ระบบล่าสุดมองว่า path จาก <strong>{best.source || "-"}</strong> ไป <strong>{best.sink || "-"}</strong>
-          {" "}ในไฟล์ <strong>{best.file_path || "-"}</strong> เป็นจุดที่น่าสงสัยที่สุด
-        </p>
-        <div className="meta-grid">
-          <div className="meta-box"><span>Line</span><strong>{best.source_line ?? "-"} → {best.sink_line ?? "-"}</strong></div>
-          <div className="meta-box"><span>Score</span><strong>{typeof best.score === "number" ? best.score.toFixed(3) : "-"}</strong></div>
-          <div className="meta-box"><span>Origin</span><strong>{best.origin || "-"}</strong></div>
-          <div className="meta-box"><span>Guarded</span><strong>{String(best.is_guarded ?? "-")}</strong></div>
-        </div>
-      </div>
-      <div style={{ height: 12 }} />
-      <div className="report-box">
-        <h3>Report ล่าสุด</h3>
-        <p>{state?.reportPreview || "ยังไม่มีรายงาน"}</p>
-      </div>
-    </div>
-  );
-}
-
-function WorkflowView({ state }) {
-  const [selectedStage, setSelectedStage] = useState("joern");
-  const workflow = state?.workflow || [];
-  const active = workflow.find((item) => item.id === selectedStage) || workflow[0];
-
-  return (
-    <div className="content">
-      <div className="panel frame">
-        <div className="label">Pipeline Floor</div>
-        <WorkflowFloor workflow={workflow} selectedStage={selectedStage} onSelect={setSelectedStage} />
-      </div>
-      <div className="panel frame">
-        <div className="label">Stage Detail</div>
-        <div className="workflow-detail">
-          <h3>{active?.name || "ยังไม่มี stage"}</h3>
-          <p>{active?.detail || "ยังไม่มีข้อมูล"}</p>
-          <div className="row" style={{ marginTop: 12 }}>
-            <span className="pill">status: {active?.status || "-"}</span>
-            {active?.meta && <span className="pill">{active.meta}</span>}
-          </div>
-        </div>
-        <div style={{ height: 12 }} />
-        <div className="report-box">
-          <h3>Latest Evidence</h3>
-          <p>{state?.latestEvidence || "ยังไม่มี evidence"}</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function DatasetView({ state, onRunAction, running }) {
-  const summary = state?.datasetSummary || {};
-  return (
-    <div className="content">
-      <div className="panel frame">
-        <div className="label">Dataset Summary</div>
-        <div className="dataset-list">
-          <div className="dataset-item"><strong>Devign</strong><div className="dataset-meta">{summary.devign_total || 0} ฟังก์ชัน</div></div>
-          <div className="dataset-item"><strong>MSR 20 C/C++</strong><div className="dataset-meta">{summary.msr_total || 0} รายการ</div></div>
-          <div className="dataset-item"><strong>CTF Write-ups</strong><div className="dataset-meta">{summary.writeup_total || 0} ไฟล์</div></div>
-          <div className="dataset-item"><strong>Training Rows</strong><div className="dataset-meta">{summary.augmented_training_rows || 0} แถว</div></div>
-        </div>
-      </div>
-      <div className="panel frame">
-        <div className="label">Dataset Actions</div>
-        <div className="agent-form">
-          <p>ถ้าต้อง rebuild dataset จากข้อมูลจริงใหม่ กดปุ่มนี้ได้เลย ระบบจะรัน `build_real_datasets.py` ให้</p>
-          <button className="btn gold" type="button" disabled={running} onClick={() => onRunAction("rebuild-datasets")}>
-            {running ? "กำลังรัน..." : "Rebuild Datasets"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function AgentsView({ state, onRunAgent, running }) {
-  const providers = state?.providers || [];
-  const availableProvider = providers.find((item) => item.available)?.id || "gemini";
-  const [provider, setProvider] = useState(availableProvider);
-  const [prompt, setPrompt] = useState("อ่าน finding ล่าสุดของโปรเจกต์นี้ แล้วสรุปความเสี่ยงกับแนวทางแก้แบบสั้น กระชับ และเป็นภาษาไทย");
-  const [output, setOutput] = useState("");
-
-  async function submit() {
-    const result = await onRunAgent(provider, prompt);
-    if (result?.output) setOutput(result.output);
-    else if (result?.error) setOutput(result.error);
-  }
-
-  return (
-    <div className="content">
-      <div className="panel frame">
-        <div className="label">Local Agent Runner</div>
-        <div className="agent-form">
-          <label>
-            Provider
-            <select value={provider} onChange={(event) => setProvider(event.target.value)}>
-              {providers.map((item) => (
-                <option key={item.id} value={item.id} disabled={!item.available}>
-                  {item.label}{item.available ? "" : " (not found)"}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Prompt
-            <textarea value={prompt} onChange={(event) => setPrompt(event.target.value)} />
-          </label>
-          <button className="btn primary" type="button" disabled={running} onClick={submit}>
-            {running ? "กำลังรัน..." : "Run Local Agent"}
-          </button>
-        </div>
-      </div>
-      <div className="panel frame">
-        <div className="label">Agent Output</div>
-        <div className="agent-output">
-          {output || "ยังไม่มีผลลัพธ์ ลองเลือก provider แล้วกด Run Local Agent"}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function App() {
-  const [view, setView] = useState("overview");
-  const [state, setState] = useState(null);
-  const [loading, setLoading] = useState(false);
-
-  async function fetchState() {
-    const response = await fetch("/api/state");
-    const data = await response.json();
+  const fetchState = async () => {
+    const res = await fetch('/api/state');
+    const data = await res.json();
     setState(data);
     return data;
-  }
+  };
 
-  useEffect(() => {
+  useEffect(()=>{
     fetchState();
-  }, []);
+  },[]);
 
-  async function postJson(url, payload) {
-    setLoading(true);
-    try {
-      const response = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload || {}),
+  useEffect(()=>{
+    const nextId=()=>++idc.current;
+    const pushHist=(h)=> setHistory(l=>[{id:nextId(),...h},...l].slice(0,200));
+
+    const occupiedBy=(self)=>{
+      const set=new Set();
+      agentsRef.current.forEach(o=>{ if(o!==self && o.target) set.add(o.target.id); });
+      return set;
+    };
+
+    const chooseNext=(self)=>{
+      const w=sRef.current.aggr, occ=occupiedBy(self), pool=[];
+      STATIONS.forEach(st=>{
+        if(occ.has(st.id) && st.zone) return;
+        let wt=2;
+        if(['joern','dataset','ml','retrieve','report','agents','control'].includes(st.kind)) wt=3+w;
+        else wt=[3,2,1][w];
+        if(st.id===self.lastSt) wt=Math.max(1,wt-2);
+        for(let i=0;i<wt;i++) pool.push(st);
       });
-      const data = await response.json();
-      if (data.state) setState(data.state);
+      return pool.length ? pick(pool) : null;
+    };
+
+    const applyOutcome=(self,st,oc)=>{
+      let c=clkRef.current+irnd(3,11), d=dayRef.current;
+      if(c>=960){ c=570; d+=1; dayRef.current=d; setDay(d); }
+      clkRef.current=c; setClock(c);
+      pushHist({ day:d, time:fmtClock(c), who:self.name, tint:self.tint, station:st.name, icon:st.icon, action:(oc.bubble||'').replace('…',''), detail:oc.notif.text });
+    };
+
+    const stepAgent=(self, dts, runningAuto)=>{
+      if(self.phase==='walking'){
+        const t=self.target; if(!t){ self.phase='idle'; self.idleT=rnd(0.4,1.4); return; }
+        const dx=t.ax-self.pos.x, dy=t.ay-self.pos.y, dist=Math.hypot(dx,dy);
+        if(dist<0.9){
+          self.pos={x:t.ax,y:t.ay};
+          const oc=generateOutcome(t); self.pending={st:t,oc};
+          self.workT=rnd(t.dur[0],t.dur[1]); self.phase='working'; self.bubble=oc.bubble;
+        } else {
+          const stp=Math.min(dist, 22*dts);
+          self.pos={x:self.pos.x+dx/dist*stp, y:self.pos.y+dy/dist*stp};
+          if(dx<-0.3) self.flip=true; else if(dx>0.3) self.flip=false;
+        }
+      } else if(self.phase==='working'){
+        self.workT-=dts;
+        if(self.workT<=0){
+          const p=self.pending; self.pending=null;
+          if(p) applyOutcome(self, p.st, p.oc);
+          self.phase='idle'; self.idleT=rnd(0.5,2.0); self.bubble=null; self.target=null;
+        }
+      } else {
+        if(runningAuto){
+          self.idleT-=dts;
+          if(self.idleT<=0){
+            const nx=chooseNext(self);
+            if(nx){ self.target=nx; self.lastSt=nx.id; self.phase='walking'; }
+            else self.idleT=0.5;
+          }
+        }
+      }
+    };
+
+    const step=(dt)=>{
+      const dts=dt*spRef.current, runningAuto=sRef.current.autopilot;
+      const agents=agentsRef.current;
+      agents.forEach(a=> stepAgent(a, dts, runningAuto));
+
+      const busy={}; let nW=0, nWalk=0;
+      agents.forEach(a=>{
+        if(a.phase==='working' && a.target) busy[a.target.id]=a.id;
+        if(a.phase==='working') nW++; else if(a.phase==='walking') nWalk++;
+      });
+      setBusySet(prev=>{
+        const pk=Object.keys(prev), bk=Object.keys(busy);
+        if(pk.length===bk.length && bk.every(k=>prev[k]===busy[k])) return prev;
+        return busy;
+      });
+      setFloor(prev=> (prev.working===nW && prev.walking===nWalk)? prev : {working:nW, walking:nWalk});
+      setAgentView(agents.map(a=>({
+        id:a.id, name:a.name, role:a.role, tint:a.tint, map:a.map, palette:a.palette,
+        pos:{x:a.pos.x, y:a.pos.y}, flip:a.flip,
+        walking:(a.phase==='walking'), bubble:a.bubble,
+        phase:a.phase, atStation:a.target&&a.target.name,
+      })));
+    };
+
+    let raf, last=performance.now();
+    const tick=(now)=>{ let dt=(now-last)/1000; last=now; if(dt>0.1)dt=0.1; step(dt); raf=requestAnimationFrame(tick); };
+    raf=requestAnimationFrame(tick);
+    return ()=>cancelAnimationFrame(raf);
+  },[]);
+
+  const onStationClick=(st)=>{
+    const cands=agentsRef.current.filter(a=>a.phase!=='working');
+    const list=cands.length?cands:agentsRef.current;
+    let best=list[0], bd=Infinity;
+    list.forEach(a=>{ const d=Math.hypot(a.pos.x-st.ax, a.pos.y-st.ay); if(d<bd){bd=d;best=a;} });
+    best.target=st; best.lastSt=st.id; best.pending=null; best.phase='walking'; best.bubble=null;
+    if(view!=='dashboard') setView('dashboard');
+  };
+
+  const postJson = async (url, payload) => {
+    setRunning(true);
+    try{
+      const res = await fetch(url, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(payload||{}),
+      });
+      const data = await res.json();
+      if(data.state){
+        setState(data.state);
+        captureAnalysis(data.state, payload?.sample || payload?.provider || url);
+      }
       return data;
     } finally {
-      setLoading(false);
+      setRunning(false);
     }
-  }
+  };
 
-  async function runTopAction(action) {
-    if (action === "source") {
-      await postJson("/api/run-analysis", {
-        sample: "samples/command_injection_challenge.c",
-        outputs: "outputs_source_joern",
-      });
-    } else if (action === "binary") {
-      await postJson("/api/run-analysis", {
-        sample: "samples/command_injection_challenge.bin",
-        mode: "binary",
-        outputs: "outputs_binary",
-      });
-    } else if (action === "rebuild-datasets") {
-      await postJson("/api/rebuild-datasets");
-    } else {
-      await fetchState();
+  const onRunSource = ()=> postJson('/api/run-analysis', {sample:'samples/command_injection_challenge.c', outputs:'outputs_source_joern'});
+  const onRunBinary = ()=> postJson('/api/run-analysis', {sample:'samples/command_injection_challenge.bin', mode:'binary', outputs:'outputs_binary'});
+  const onRebuild = ()=> postJson('/api/rebuild-datasets', {});
+  const onRunAgent = (provider, prompt)=> postJson('/api/run-agent', {provider, prompt});
+  const onRefresh = async ()=> {
+    setRunning(true);
+    try{
+      const data = await fetchState();
+      captureAnalysis(data, 'refresh');
+    } finally {
+      setRunning(false);
     }
-  }
+  };
 
-  async function runAgent(provider, prompt) {
-    return postJson("/api/run-agent", { provider, prompt });
-  }
+  const togglePlay=()=> setSettings(s=>({...s,autopilot:!s.autopilot}));
 
-  const content = useMemo(() => {
-    if (!state) {
-      return <div className="panel frame"><div className="label">กำลังโหลด</div><div className="workflow-detail"><p>กำลังอ่านสถานะของระบบ...</p></div></div>;
-    }
-    if (view === "workflow") return <WorkflowView state={state} />;
-    if (view === "datasets") return <DatasetView state={state} onRunAction={runTopAction} running={loading} />;
-    if (view === "agents") return <AgentsView state={state} onRunAgent={runAgent} running={loading} />;
-    return <OverviewView state={state} />;
-  }, [view, state, loading]);
+  const statusLine = settings.autopilot
+    ? `${floor.working} working · ${floor.walking} walking`
+    : 'Floor paused — agents idle';
 
   return (
-    <div className="app">
-      <Sidebar view={view} setView={setView} state={state} />
-      <main className="main">
-        <div className="frame topbar">
-          <div>
-            <h2>Workflow Dashboard</h2>
-            <div className="sub">adapted from ai-agents-pixels ให้เข้ากับ hybrid vulnerability pipeline</div>
+    <div className={'app'+(settings.anim?'':' no-anim')}>
+      <div className="main">
+        <div className="hud frame">
+          <div className="ctrl">
+            <button className={'btn '+(settings.autopilot?'on':'gold')} onClick={togglePlay}>
+              {settings.autopilot?'⏸ Pause':'▶ Resume'}</button>
           </div>
-          <div className="top-actions">
-            <button className="btn primary" type="button" disabled={loading} onClick={() => runTopAction("source")}>Run Source Analysis</button>
-            <button className="btn" type="button" disabled={loading} onClick={() => runTopAction("binary")}>Run Binary Analysis</button>
-            <button className="btn gold" type="button" disabled={loading} onClick={() => runTopAction("refresh")}>Refresh</button>
+          <div className="now">
+            <div className="pin">🛡️</div>
+            <div className="txt">
+              <div className="lab">The Floor · {AGENTS.length} agents</div>
+              <div className="act">{statusLine}</div>
+            </div>
+          </div>
+          <div className="clock">Day {day} · {fmtClock(clock)}</div>
+          <div className="seg">
+            {[1,2,4].map(s=> <button key={s} className={speed===s?'on':''} onClick={()=>setSpeed(s)}>{s}×</button>)}
           </div>
         </div>
-        {content}
-      </main>
+
+        {view==='dashboard' &&
+          <Room agents={agentView} busySet={busySet} onStationClick={onStationClick}
+            tint={settings.tint} showLabels={settings.labels} showNames={settings.names} />}
+        {view==='analysis' && <Analysis analyses={analyses} activeAnalysisId={activeAnalysisId}
+            setActiveAnalysisId={setActiveAnalysisId}
+            onRunSource={onRunSource}
+            onRunBinary={onRunBinary}
+            onRebuild={onRebuild}
+            onRunAgent={onRunAgent}
+            providers={state?.providers || []}
+            running={running}
+            agents={agentView} />}
+        {view==='history'  && <History history={history} />}
+        {view==='settings' && <Settings settings={settings} setSettings={setSettings}
+            onRefresh={onRefresh} speed={speed} setSpeed={setSpeed} />}
+      </div>
+
+      <Sidebar view={view} setView={setView} state={state} running={running} agents={agentView} />
     </div>
   );
 }
 
-ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
