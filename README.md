@@ -78,19 +78,19 @@ sequenceDiagram
 
 ## ไฟล์สำคัญที่ควรรู้จัก
 
-- [scripts/pipeline.py](/Users/k1god/hybrid-vuln-analysis-demo/scripts/pipeline.py)
+- `scripts/pipeline.py`
   ตัวหลักของระบบ ตั้งแต่ parse -> score -> retrieve -> report
 
-- [scripts/joern_extract.sc](/Users/k1god/hybrid-vuln-analysis-demo/scripts/joern_extract.sc)
+- `scripts/joern_extract.sc`
   query script ที่ใช้กับ `Joern` จริง
 
-- [samples/command_injection_challenge.c](/Users/k1god/hybrid-vuln-analysis-demo/samples/command_injection_challenge.c)
+- `samples/command_injection_challenge.c`
   sample โจทย์ C สำหรับเดโม่
 
-- [outputs_source_joern/ranked_paths.json](/Users/k1god/hybrid-vuln-analysis-demo/outputs_source_joern/ranked_paths.json)
+- `outputs_source_joern/ranked_paths.json`
   ผล path ranking จากรอบที่ใช้ `Joern`
 
-- [outputs_source_joern/analysis_report.md](/Users/k1god/hybrid-vuln-analysis-demo/outputs_source_joern/analysis_report.md)
+- `outputs_source_joern/analysis_report.md`
   รายงานสรุปที่ระบบสร้างออกมา
 
 ## ตอนนี้เดโม่เจออะไร
@@ -109,7 +109,7 @@ sequenceDiagram
 ### 1. เปิด virtualenv
 
 ```bash
-cd /Users/k1god/hybrid-vuln-analysis-demo
+cd hybrid-vuln-analysis-demo
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
@@ -149,21 +149,3 @@ python3 scripts/pipeline.py --sample samples/command_injection_challenge.bin --m
 
 - `binary_corroboration.json`
   หลักฐานฝั่ง binary ที่ช่วยยืนยันผลจาก source
-
-## จุดที่ยังไม่สมบูรณ์
-
-- LLM provider ที่ตั้งไว้ตอนนี้ยังโดน Cloudflare block เลย fallback report บ่อย
-- dataset training ยังเล็กมาก ใช้เพื่อเดโม่ flow มากกว่าความแม่นยำจริง
-- knowledge base ยังเป็นชุดเล็ก
-- ตอนนี้ยังเน้น demo กับ sample ไม่ได้กินโจทย์ CTF จำนวนมากอัตโนมัติ
-
-## ถ้าจะต่อยอดต่อ
-
-- เพิ่มโจทย์ CTF จริงจำนวนมากแล้ว auto-generate training rows
-- ขยาย source/sink dictionary ให้ครอบคลุม bug family มากขึ้น
-- เปลี่ยนไปใช้ LLM endpoint ที่ไม่โดน block
-- เพิ่ม ingestion สำหรับ write-up หรือ open-source dataset
-
-## สรุปแบบคนทำโปรเจกต์เล่าเอง
-
-โปรเจกต์นี้ตอนนี้ไม่ได้เป็นแค่ mock แล้ว เพราะ `Joern` ใช้จริง, binary evidence ก็มี, model ก็ช่วย rank ได้, retrieval ก็มี, และรายงานก็ออกได้จริง ถึงแม้ฝั่ง LLM provider ยังติด block อยู่บ้าง แต่ภาพรวมของ pipeline เดินครบแล้ว และพร้อมเอาไปพรีเดโม่หรือเอาไปต่อยอดให้ใหญ่ขึ้นได้เลย
